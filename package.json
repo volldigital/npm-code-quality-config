@@ -1,6 +1,6 @@
 {
   "name": "@disphere/code-quality-config",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Provides opinionated configuration for npm plugins that deal with code quality.",
   "license": "0BSD",
   "author": "disphere interactive GmbH",
