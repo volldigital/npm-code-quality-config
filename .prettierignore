@@ -1,0 +1,5 @@
+# Checked by the smoke test with the packed package installed; its config cannot resolve from here.
+test/consumer/
+
+# Claude Code settings, not part of the package.
+.claude/

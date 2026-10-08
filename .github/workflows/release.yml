@@ -1,0 +1,60 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version bump (patch|minor|major) or an explicit semver (e.g. 1.2.3)'
+        required: true
+        default: patch
+        type: string
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js version 26
+        uses: actions/setup-node@v6
+        with:
+          node-version: 26
+          cache: npm
+
+      - name: Install npm 11 to support trusted publishing
+        run: npm install -g npm@11
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Check formatting
+        run: npm run format:check
+
+      - name: Smoke test packed artifact
+        run: npm test
+
+      - name: Show package contents
+        run: npm pack --dry-run
+
+      - name: Configure git identity
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Bump version, commit and tag
+        run: |
+          npm version "${{ inputs.version }}" -m "chore(release): %s"
+
+      - name: Push commit and tag
+        run: git push --follow-tags
+
+      - name: Publish to npm
+        run: npm publish --provenance
