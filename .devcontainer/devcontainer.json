@@ -1,0 +1,20 @@
+{
+  "$schema": "https://raw.githubusercontent.com/devcontainers/spec/refs/heads/main/schemas/devContainer.schema.json",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+  "runArgs": ["--privileged"],
+  "features": {
+    "ghcr.io/devcontainers/features/node:2": {
+      "version": "26"
+    },
+    "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {},
+    "ghcr.io/schroenser/devcontainer-features/claude-settings:1.0.2": {}
+  },
+  "mounts": [
+    "source=claude-shared,target=/home/vscode/.claude,type=volume",
+    "source=claude-projects-${devcontainerId},target=/home/vscode/.claude/projects,type=volume"
+  ],
+  "containerEnv": {
+    "CLAUDE_CONFIG_DIR": "/home/vscode/.claude"
+  },
+  "postCreateCommand": "./.devcontainer/postCreate.sh"
+}
