@@ -31,6 +31,22 @@ Declare the Node version in your `package.json`. `eslint-plugin-n` reads it to d
 }
 ```
 
+### `npm audit` and minimatch (GHSA-g3hv-75wg-m249)
+
+`npm audit` may report [GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249), a ReDoS in minimatch `<11.0.1`. It comes in through `eslint`, `@eslint/config-array` and `@typescript-eslint/typescript-estree`, which require minimatch 10 themselves, so this package can't fix it. npm `overrides` only take effect in the root project, so the package can't apply one for you either.
+
+The risk is low: in a lint setup, minimatch only matches the glob patterns from your own ESLint config and ignore files, not untrusted input. To clear the audit anyway, add an override to your `package.json`:
+
+```json
+{
+  "overrides": {
+    "minimatch": "^11.0.5"
+  }
+}
+```
+
+ESLint and typescript-eslint both work with minimatch 11; their own fixes require `^11.0.5` and `^11.0.1`. Remove the override once releases of both that depend on minimatch 11 are installed.
+
 ## ESLint
 
 Create `eslint.config.mjs`:
