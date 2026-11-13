@@ -58,15 +58,23 @@ async function main() {
     for (const m of file.messages) {
       const id = m.ruleId ?? '(parse error)';
       const r = rules.get(id) ?? { errors: 0, warnings: 0, fixable: 0, files: new Set() };
-      if (m.severity === 2) r.errors++;
-      else r.warnings++;
-      if (m.fix) r.fixable++;
+      if (m.severity === 2) {
+        r.errors++;
+      } else {
+        r.warnings++;
+      }
+      if (m.fix) {
+        r.fixable++;
+      }
       r.files.add(file.filePath);
       rules.set(id, r);
 
       const f = files.get(file.filePath) ?? { errors: 0, warnings: 0, rules: new Set() };
-      if (m.severity === 2) f.errors++;
-      else f.warnings++;
+      if (m.severity === 2) {
+        f.errors++;
+      } else {
+        f.warnings++;
+      }
       f.rules.add(id);
       files.set(file.filePath, f);
     }

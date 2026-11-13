@@ -25,7 +25,9 @@ async function main() {
   const byModule = new Map();
   for (const file of results) {
     for (const m of file.messages) {
-      if (m.ruleId !== rule) continue;
+      if (m.ruleId !== rule) {
+        continue;
+      }
       const mod = /["'`]([^"'`]+)["'`]/.exec(m.message)?.[1] ?? m.message.slice(0, 60);
       const e = byModule.get(mod) ?? { count: 0, files: new Set() };
       e.count++;

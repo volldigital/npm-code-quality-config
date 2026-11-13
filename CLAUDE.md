@@ -46,7 +46,8 @@ Package exports (`package.json` `exports`/`bin`):
     6. Cypress e2e (always on, inert without matching files)
     7. one test-runner block (`jest`/`vitest`/`mocha`, or none)
     8. tooling files
-    9. `eslint-config-prettier`, which must stay last so it disables conflicting formatting rules.
+    9. `eslint-config-prettier`, which must come after every block above so it disables conflicting formatting rules.
+    10. `curly`, which must come after `eslint-config-prettier`, because that turns it off. The default `all` option doesn't conflict with Prettier.
 - `@disphere/code-quality-config/prettier` → `prettier.js`: the shared Prettier config.
   - Plugins are resolved to absolute paths with `import.meta.resolve`, so consuming projects don't need to install them.
   - SQL formatting of templates tagged `mysqlFormat`/`mssqlFormat` via `prettier-plugin-embed` + `prettier-plugin-sql`.

@@ -81,6 +81,8 @@ These globs decide which rules apply to a file:
 
 Variables, arguments and caught errors prefixed with `_` are exempt from the unused-variable rules.
 
+`curly` is enforced with its default `all` option: every `if`, `else`, `for`, `while` and `do` body needs braces. Existing code can be fixed with `eslint --fix`.
+
 With TypeScript 6, `compilerOptions.types` defaults to `[]`, so `@types/*` packages are no longer included automatically. If you see type-aware errors such as `no-unsafe-call` on Node APIs, list the packages explicitly in your `tsconfig.json`, e.g. `"types": ["node"]`.
 
 ## Prettier

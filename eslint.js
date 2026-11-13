@@ -232,5 +232,16 @@ export default function appConfig({
 
     // prettier
     prettier,
+
+    /*
+     * Must stay AFTER `prettier`. eslint-config-prettier turns `curly` off because its `multi*` options can conflict
+     * with Prettier; the default `all` option does not, so it is re-enabled here. Moved above the prettier block, it
+     * would silently be switched off again.
+     */
+    {
+      name: 'shared/curly',
+      files: [ALL],
+      rules: { curly: 'error' },
+    },
   ]);
 }
