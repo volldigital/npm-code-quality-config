@@ -44,7 +44,7 @@ Package exports (`package.json` `exports`/`bin`):
     4. React (`.jsx`/`.tsx`)
     5. `import-x`
     6. Cypress e2e (always on, inert without matching files)
-    7. one test-runner block (`jest`/`vitest`/`mocha`, or none)
+    7. one test-runner block (`jest`/`vitest`/`mocha`/`node`, or none). Runners in `RUNNER_SAFE_CALLS` (currently `node`) get a second block, limited to TS test files, that exempts their calls from `no-floating-promises`.
     8. tooling files
     9. `eslint-config-prettier`, which must come after every block above so it disables conflicting formatting rules.
     10. `curly`, which must come after `eslint-config-prettier`, because that turns it off. The default `all` option doesn't conflict with Prettier.
@@ -72,6 +72,7 @@ Design decisions documented in comments that should be preserved:
 1. copies it to a temp dir
 2. runs `npm pack` and installs the tarball plus `eslint prettier typescript@6 @types/node vitest`
 3. runs `prettier --check`, `tsc`, `eslint`, `vitest run`, and both bins.
+4. writes bad-code fixtures into the copy and checks the exact rule/line reports (`expectMessages`): `curly` plus its fix, and `testRunner: 'node'` via a second config passed with `--config`.
 
 This catches what linting the repo cannot: files missing from `files`, broken `exports`, plugins not resolving from a consumer's directory, and peer conflicts.
 

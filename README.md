@@ -62,14 +62,14 @@ export default appConfig({
 
 All options are optional:
 
-| Option            | Values                                          | Default     | Description                                                                                          |
-| ----------------- | ----------------------------------------------- | ----------- | ---------------------------------------------------------------------------------------------------- |
-| `env`             | `'browser'` \| `'node'` \| `'both'`             | `'browser'` | Where your code runs. Sets globals; `node`/`both` also enable `eslint-plugin-n`.                     |
-| `modules`         | `'esm'` \| `'cjs'`                              | `'esm'`     | How bare `.js` files are parsed. Must match the `type` in your `package.json`.                       |
-| `testRunner`      | `'jest'` \| `'vitest'` \| `'mocha'` \| `'none'` | `'vitest'`  | Picks the plugin and globals for test files. `'none'` skips the test block.                          |
-| `jestVersion`     | number                                          | `30`        | Major Jest version; only read when `testRunner` is `'jest'`.                                         |
-| `tsconfigRootDir` | string                                          | –           | Pass `import.meta.dirname` in TypeScript projects. Type-aware rules use the nearest `tsconfig.json`. |
-| `ignores`         | string[]                                        | `[]`        | Extra ignore globs. `dist/`, `build/`, `coverage/` and `*.min.js` are always ignored.                |
+| Option            | Values                                                      | Default     | Description                                                                                                                      |
+| ----------------- | ----------------------------------------------------------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `env`             | `'browser'` \| `'node'` \| `'both'`                         | `'browser'` | Where your code runs. Sets globals; `node`/`both` also enable `eslint-plugin-n`.                                                 |
+| `modules`         | `'esm'` \| `'cjs'`                                          | `'esm'`     | How bare `.js` files are parsed. Must match the `type` in your `package.json`.                                                   |
+| `testRunner`      | `'jest'` \| `'vitest'` \| `'mocha'` \| `'node'` \| `'none'` | `'vitest'`  | Picks the plugin and globals for test files. `'node'` is Node's built-in `node:test` (see below). `'none'` skips the test block. |
+| `jestVersion`     | number                                                      | `30`        | Major Jest version; only read when `testRunner` is `'jest'`.                                                                     |
+| `tsconfigRootDir` | string                                                      | –           | Pass `import.meta.dirname` in TypeScript projects. Type-aware rules use the nearest `tsconfig.json`.                             |
+| `ignores`         | string[]                                                    | `[]`        | Extra ignore globs. `dist/`, `build/`, `coverage/` and `*.min.js` are always ignored.                                            |
 
 These globs decide which rules apply to a file:
 
@@ -78,6 +78,8 @@ These globs decide which rules apply to a file:
 - **Tests**: `*.test.*`, `*.spec.*`, and files under `__tests__/`, `test/` or `tests/`
 - **Cypress**: `*.cy.*` and files under `cypress/`
 - **Tooling**: `*.config.*` and `scripts/**`. These are treated as Node code even in browser projects.
+
+With `testRunner: 'node'`, test files get Node globals, and calls of `test`, `describe`, `it` and `suite` (including `.skip`, `.todo` and `.only`) imported from `node:test` are exempt from `@typescript-eslint/no-floating-promises`, because the runner awaits their promises itself. Other floating promises in test files are still reported. Jest, Vitest and Mocha need no such exemption: their `test()`/`describe()`/`it()` don't return promises.
 
 Variables, arguments and caught errors prefixed with `_` are exempt from the unused-variable rules.
 

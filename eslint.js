@@ -26,9 +26,27 @@ const TESTS = [
 const TOOLING = ['*.config.{js,mjs,ts,mts}', 'scripts/**/*.{js,mjs,ts,mts}'];
 
 const TEST_RUNNERS = {
-  jest: { extends: jest.configs['flat/recommended'], globals: globals.jest },
-  vitest: { extends: vitest.configs.recommended, globals: globals.vitest },
-  mocha: { extends: mocha.configs.recommended, globals: globals.mocha },
+  jest: { extends: [jest.configs['flat/recommended']], globals: globals.jest },
+  vitest: { extends: [vitest.configs.recommended], globals: globals.vitest },
+  mocha: { extends: [mocha.configs.recommended], globals: globals.mocha },
+  // Node's built-in `node:test`: no plugin, and its API is imported rather than global.
+  node: { extends: [], globals: globals.node },
+};
+
+/*
+ * Calls whose returned promise the test runner awaits itself, for @typescript-eslint/no-floating-promises. Only
+ * node:test needs entries: Jest, Vitest and Mocha return void (or a non-thenable) from test()/describe()/it().
+ * `skip`/`todo`/`only` cover the member forms (`test.skip()`, `describe.only()`); the package scope keeps them from
+ * matching anything outside node:test.
+ */
+const RUNNER_SAFE_CALLS = {
+  node: [
+    {
+      from: 'package',
+      package: 'node:test',
+      name: ['test', 'describe', 'it', 'suite', 'skip', 'todo', 'only'],
+    },
+  ],
 };
 
 const ENV_GLOBALS = {
@@ -41,8 +59,9 @@ const ENV_GLOBALS = {
  * @param {object} [options]
  * @param {'browser'|'node'|'both'} [options.env] Where the project's own code runs.
  *   Default: `browser`
- * @param {'jest'|'vitest'|'mocha'|'none'} [options.testRunner] Which runner the project's tests use. Picks the
- *   matching plugin and globals. 'none' skips the test block entirely.
+ * @param {'jest'|'vitest'|'mocha'|'node'|'none'} [options.testRunner] Which runner the project's tests use. Picks the
+ *   matching plugin and globals. 'node' is Node's built-in `node:test`: Node globals, and its test()/describe()/it()/
+ *   suite() promises are exempt from no-floating-promises. 'none' skips the test block entirely.
  *   Default: `vitest`
  * @param {number} [options.jestVersion] Major version of Jest in use. Only read when testRunner is 'jest'.
  *   eslint-plugin-jest cannot see the project's jest version.
@@ -213,7 +232,7 @@ export default function appConfig({
           {
             name: `shared/tests-${testRunner}`,
             files: TESTS,
-            extends: [TEST_RUNNERS[testRunner].extends],
+            extends: TEST_RUNNERS[testRunner].extends,
             ...(testRunner === 'jest' ? { settings: { jest: { version: jestVersion } } } : {}),
             languageOptions: { globals: { ...TEST_RUNNERS[testRunner].globals } },
             rules: {
@@ -221,6 +240,21 @@ export default function appConfig({
             },
           },
         ]),
+    ...(RUNNER_SAFE_CALLS[testRunner]
+      ? [
+          {
+            name: `shared/tests-${testRunner}-typescript`,
+            // Test files that are also TypeScript: the typescript-eslint plugin only exists there.
+            files: TESTS.map((glob) => [glob, TS]),
+            rules: {
+              '@typescript-eslint/no-floating-promises': [
+                'error',
+                { allowForKnownSafeCalls: RUNNER_SAFE_CALLS[testRunner] },
+              ],
+            },
+          },
+        ]
+      : []),
 
     //tooling
     {
