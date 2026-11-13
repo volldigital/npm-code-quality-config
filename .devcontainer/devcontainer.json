@@ -1,20 +1,24 @@
 {
   "$schema": "https://raw.githubusercontent.com/devcontainers/spec/refs/heads/main/schemas/devContainer.schema.json",
+  "name": "npm-code-quality-config",
   "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
-  "runArgs": ["--privileged"],
+  "runArgs": ["--privileged", "--add-host=host.containers.internal:host-gateway"],
   "features": {
-    "ghcr.io/devcontainers/features/node:2": {
+    "ghcr.io/devcontainers/features/node:2.1.2": {
       "version": "26"
     },
     "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {},
-    "ghcr.io/schroenser/devcontainer-features/claude-settings:1.0.2": {}
+    "ghcr.io/schroenser/devcontainer-features/claude-settings:1.1.2": {}
   },
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/${localWorkspaceFolderBasename},type=bind",
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
   "mounts": [
     "source=claude-shared,target=/home/vscode/.claude,type=volume",
     "source=claude-projects-${devcontainerId},target=/home/vscode/.claude/projects,type=volume"
   ],
   "containerEnv": {
-    "CLAUDE_CONFIG_DIR": "/home/vscode/.claude"
+    "CLAUDE_CONFIG_DIR": "/home/vscode/.claude",
+    "DO_NOT_TRACK": "1"
   },
   "postCreateCommand": "./.devcontainer/postCreate.sh"
 }

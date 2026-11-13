@@ -6,7 +6,7 @@
 //   npm test
 //   npm test -- --keep   # leave the installed copy on disk for inspection
 import { execFileSync } from 'node:child_process';
-import { cp, mkdtemp, rm } from 'node:fs/promises';
+import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -18,6 +18,100 @@ const run = (cmd, args, opts = {}) => {
   console.log(`> ${cmd} ${args.join(' ')}`);
   return execFileSync(cmd, args, { cwd: dir, encoding: 'utf8', stdio: ['pipe', 'pipe', 'inherit'], ...opts });
 };
+
+// Lints one file and fails unless its messages are exactly `expected` (`'rule:line'` entries, any order). ESLint exits
+// 1 when it finds errors, which is the expected outcome here, so the JSON is read either way.
+const expectMessages = (file, expected, eslintArgs = []) => {
+  let out;
+  try {
+    out = run('npx', ['eslint', '--format', 'json', ...eslintArgs, file]);
+  } catch (err) {
+    if (err.status !== 1) {
+      throw err;
+    }
+    out = err.stdout;
+  }
+  const found = JSON.parse(out)
+    .flatMap((result) => result.messages.map((m) => `${m.ruleId}:${m.line}`))
+    .sort();
+  if (found.join() !== [...expected].sort().join()) {
+    throw new Error(`${file}: expected [${expected.join(', ')}]; got [${found.join(', ')}]`);
+  }
+};
+
+// Line of the first occurrence of `marker` in `source`, so expectations don't hard-code line numbers.
+const lineOf = (source, marker) => source.slice(0, source.indexOf(marker)).split('\n').length;
+
+// Bad code is written by this script, not committed to test/consumer, so the clean checks above stay clean.
+const CURLY_BAD = `export const sign = (n: number) => {
+  if (n < 0) return -1;
+  return 1;
+};
+`;
+const CURLY_FIXED = `export const sign = (n: number) => {
+  if (n < 0) {
+    return -1;
+  }
+  return 1;
+};
+`;
+
+// node:test returns promises from test()/describe()/it()/suite() that the runner awaits itself.
+const NODE_TEST_CONFIG = `import appConfig from '@disphere/code-quality-config/eslint';
+
+export default appConfig({ env: 'node', testRunner: 'node', tsconfigRootDir: import.meta.dirname });
+`;
+const NODE_TEST = `import assert from 'node:assert/strict';
+import { describe, it, suite, test } from 'node:test';
+
+test('test', () => {
+  assert.equal(1, 1);
+});
+
+describe('describe', () => {
+  it('it', async () => {
+    assert.equal(await Promise.resolve(1), 1);
+  });
+});
+
+suite('suite', () => {
+  test.skip('skip', () => {
+    assert.ok(true);
+  });
+  test.todo('todo');
+});
+
+describe.only('only', () => {
+  it('floating promise', () => {
+    fetch('https://example.com');
+  });
+});
+`;
+
+// Vue SFC: a type-checked rule, a Vue rule and `curly` must all report inside it; Ionic elements must not. Prettier
+// must sort the imports inside <script setup> (unsorted here) and leave the rest alone.
+const VUE_IMPORTS_UNSORTED = `import { usersByName } from './index.js';
+import { ref } from 'vue';
+`;
+const VUE_IMPORTS_SORTED = `import { ref } from 'vue';
+
+import { usersByName } from './index.js';
+`;
+const VUE_BAD = `<script setup lang="ts">
+${VUE_IMPORTS_UNSORTED}
+const props = defineProps<{ items: string[] }>();
+const query = ref(usersByName);
+
+fetch('https://example.com');
+if (props.items.length === 0) console.log(query.value);
+</script>
+
+<template>
+  <ion-list>
+    <ion-item v-for="item in props.items">{{ item }}</ion-item>
+  </ion-list>
+</template>
+`;
 
 try {
   await cp(join(root, 'test/consumer'), dir, { recursive: true });
@@ -36,6 +130,8 @@ try {
     'typescript@6',
     '@types/node',
     'vitest',
+    // Also provides @vue/compiler-sfc, which the sort-imports Prettier plugin needs for .vue files.
+    'vue',
   ]);
 
   // The fixture is committed formatted, so this passes only if every prettier plugin loaded.
@@ -49,12 +145,53 @@ try {
   console.log(run('npx', ['lint-report'], { input: json }));
   console.log(run('npx', ['which-modules', 'no-undef'], { input: json }));
 
+  // `curly` sits after eslint-config-prettier, which would otherwise turn it off. Its fix plus Prettier must be stable.
+  const curlyFile = 'src/curly.ts';
+  await writeFile(join(dir, curlyFile), CURLY_BAD);
+  expectMessages(curlyFile, [`curly:${lineOf(CURLY_BAD, 'if')}`]);
+  run('npx', ['eslint', '--fix', curlyFile]);
+  run('npx', ['prettier', '--write', curlyFile]);
+  if ((await readFile(join(dir, curlyFile), 'utf8')) !== CURLY_FIXED) {
+    throw new Error(`${curlyFile}: eslint --fix + prettier did not produce the expected output`);
+  }
+  run('npx', ['eslint', curlyFile]);
+  await rm(join(dir, curlyFile));
+
+  // testRunner 'node': the runner's own calls pass, a real floating promise is still reported.
+  const nodeTestFile = 'src/node.test.ts';
+  await writeFile(join(dir, 'eslint.node-test.config.mjs'), NODE_TEST_CONFIG);
+  await writeFile(join(dir, nodeTestFile), NODE_TEST);
+  expectMessages(
+    nodeTestFile,
+    [`@typescript-eslint/no-floating-promises:${lineOf(NODE_TEST, 'fetch(')}`],
+    ['--config', 'eslint.node-test.config.mjs'],
+  );
+  await rm(join(dir, nodeTestFile));
+
+  const vueFile = 'src/BadList.vue';
+  await writeFile(join(dir, vueFile), VUE_BAD);
+  expectMessages(vueFile, [
+    `@typescript-eslint/no-floating-promises:${lineOf(VUE_BAD, 'fetch(')}`,
+    `curly:${lineOf(VUE_BAD, 'if (')}`,
+    `vue/valid-v-for:${lineOf(VUE_BAD, 'v-for')}`,
+  ]);
+  run('npx', ['prettier', '--write', vueFile]);
+  if ((await readFile(join(dir, vueFile), 'utf8')) !== VUE_BAD.replace(VUE_IMPORTS_UNSORTED, VUE_IMPORTS_SORTED)) {
+    throw new Error(`${vueFile}: prettier did not sort the <script setup> imports as expected`);
+  }
+  await rm(join(dir, vueFile));
+
   console.log('Smoke test passed.');
 } catch (err) {
-  if (err.stdout) console.error(err.stdout);
+  if (err.stdout) {
+    console.error(err.stdout);
+  }
   console.error(`Smoke test failed: ${err.message}`);
   process.exitCode = 1;
 } finally {
-  if (keep) console.log(`Consumer project kept at ${dir}`);
-  else await rm(dir, { recursive: true, force: true });
+  if (keep) {
+    console.log(`Consumer project kept at ${dir}`);
+  } else {
+    await rm(dir, { recursive: true, force: true });
+  }
 }

@@ -4,7 +4,7 @@ Opinionated, shared ESLint (flat config) and Prettier configuration. It bundles 
 
 What you get:
 
-- **ESLint**: `@eslint/js` recommended, type-checked `typescript-eslint`, `eslint-plugin-n` for Node code, React (`@eslint-react` + hooks), `import-x` with cycle detection, Cypress, and Jest/Vitest/Mocha. Rules that would conflict with Prettier are turned off.
+- **ESLint**: `@eslint/js` recommended, type-checked `typescript-eslint`, `eslint-plugin-n` for Node code, React (`@eslint-react` + hooks), Vue (`eslint-plugin-vue`), `import-x` with cycle detection, Cypress, and Jest/Vitest/Mocha. Rules that would conflict with Prettier are turned off.
 - **Prettier**: 120 columns, single quotes, trailing commas, import sorting, and SQL formatting inside tagged template literals.
 - **CLI helpers**: `lint-report` and `which-modules`, which summarise ESLint output.
 
@@ -31,6 +31,22 @@ Declare the Node version in your `package.json`. `eslint-plugin-n` reads it to d
 }
 ```
 
+### `npm audit` and minimatch (GHSA-g3hv-75wg-m249)
+
+`npm audit` may report [GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249), a ReDoS in minimatch `<11.0.1`. It comes in through `eslint`, `@eslint/config-array` and `@typescript-eslint/typescript-estree`, which require minimatch 10 themselves, so this package can't fix it. npm `overrides` only take effect in the root project, so the package can't apply one for you either.
+
+The risk is low: in a lint setup, minimatch only matches the glob patterns from your own ESLint config and ignore files, not untrusted input. To clear the audit anyway, add an override to your `package.json`:
+
+```json
+{
+  "overrides": {
+    "minimatch": "^11.0.5"
+  }
+}
+```
+
+ESLint and typescript-eslint both work with minimatch 11; their own fixes require `^11.0.5` and `^11.0.1`. Remove the override once releases of both that depend on minimatch 11 are installed.
+
 ## ESLint
 
 Create `eslint.config.mjs`:
@@ -46,26 +62,42 @@ export default appConfig({
 
 All options are optional:
 
-| Option            | Values                                          | Default     | Description                                                                                          |
-| ----------------- | ----------------------------------------------- | ----------- | ---------------------------------------------------------------------------------------------------- |
-| `env`             | `'browser'` \| `'node'` \| `'both'`             | `'browser'` | Where your code runs. Sets globals; `node`/`both` also enable `eslint-plugin-n`.                     |
-| `modules`         | `'esm'` \| `'cjs'`                              | `'esm'`     | How bare `.js` files are parsed. Must match the `type` in your `package.json`.                       |
-| `testRunner`      | `'jest'` \| `'vitest'` \| `'mocha'` \| `'none'` | `'vitest'`  | Picks the plugin and globals for test files. `'none'` skips the test block.                          |
-| `jestVersion`     | number                                          | `30`        | Major Jest version; only read when `testRunner` is `'jest'`.                                         |
-| `tsconfigRootDir` | string                                          | –           | Pass `import.meta.dirname` in TypeScript projects. Type-aware rules use the nearest `tsconfig.json`. |
-| `ignores`         | string[]                                        | `[]`        | Extra ignore globs. `dist/`, `build/`, `coverage/` and `*.min.js` are always ignored.                |
+| Option            | Values                                                      | Default     | Description                                                                                                                      |
+| ----------------- | ----------------------------------------------------------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `env`             | `'browser'` \| `'node'` \| `'both'`                         | `'browser'` | Where your code runs. Sets globals; `node`/`both` also enable `eslint-plugin-n`.                                                 |
+| `modules`         | `'esm'` \| `'cjs'`                                          | `'esm'`     | How bare `.js` files are parsed. Must match the `type` in your `package.json`.                                                   |
+| `testRunner`      | `'jest'` \| `'vitest'` \| `'mocha'` \| `'node'` \| `'none'` | `'vitest'`  | Picks the plugin and globals for test files. `'node'` is Node's built-in `node:test` (see below). `'none'` skips the test block. |
+| `jestVersion`     | number                                                      | `30`        | Major Jest version; only read when `testRunner` is `'jest'`.                                                                     |
+| `tsconfigRootDir` | string                                                      | –           | Pass `import.meta.dirname` in TypeScript projects. Type-aware rules use the nearest `tsconfig.json`.                             |
+| `ignores`         | string[]                                                    | `[]`        | Extra ignore globs. `dist/`, `build/`, `coverage/` and `*.min.js` are always ignored.                                            |
 
 These globs decide which rules apply to a file:
 
 - **TypeScript**: `*.ts`, `*.mts`, `*.cts`, `*.tsx`
 - **React**: `*.jsx`, `*.tsx`
+- **Vue**: `*.vue` (see [Vue](#vue))
 - **Tests**: `*.test.*`, `*.spec.*`, and files under `__tests__/`, `test/` or `tests/`
 - **Cypress**: `*.cy.*` and files under `cypress/`
 - **Tooling**: `*.config.*` and `scripts/**`. These are treated as Node code even in browser projects.
 
+With `testRunner: 'node'`, test files get Node globals, and calls of `test`, `describe`, `it` and `suite` (including `.skip`, `.todo` and `.only`) imported from `node:test` are exempt from `@typescript-eslint/no-floating-promises`, because the runner awaits their promises itself. Other floating promises in test files are still reported. Jest, Vitest and Mocha need no such exemption: their `test()`/`describe()`/`it()` don't return promises.
+
 Variables, arguments and caught errors prefixed with `_` are exempt from the unused-variable rules.
 
+`curly` is enforced with its default `all` option: every `if`, `else`, `for`, `while` and `do` body needs braces. Existing code can be fixed with `eslint --fix`.
+
 With TypeScript 6, `compilerOptions.types` defaults to `[]`, so `@types/*` packages are no longer included automatically. If you see type-aware errors such as `no-unsafe-call` on Node APIs, list the packages explicitly in your `tsconfig.json`, e.g. `"types": ["node"]`.
+
+### Vue
+
+Vue single-file components are linted automatically, with no extra option. Like the React rules, the Vue rules only apply to matching files (`*.vue`), so other projects are unaffected.
+
+- `eslint-plugin-vue`'s `flat/recommended` preset (Vue 3) applies to the whole file. Template formatting rules are turned off, because Prettier formats templates.
+- `<script>` and `<script setup>` are parsed by the typescript-eslint parser, so the same type-checked rules as in `.ts` files apply. Blocks without `lang="ts"` are linted the same way.
+- Type-aware rules need the `.vue` files in a `tsconfig.json` (e.g. `"include": ["src"]` or `"src/**/*.vue"`). To import components from `.ts` files, declare the usual `*.vue` module shim; see [`shims-vue.d.ts`](test/consumer/src/shims-vue.d.ts).
+- Custom elements such as Ionic's `<ion-button>` are not flagged. `vue/no-undef-components` stays off, because it can't see globally registered or auto-imported components. Enable it yourself with `ignorePatterns: ['^ion-']` if it fits your project.
+
+Prettier formats `.vue` files out of the box. Sorting the imports inside `<script>` needs `@vue/compiler-sfc`, which every Vue project already has as a dependency of `vue`.
 
 ## Prettier
 
@@ -149,7 +181,7 @@ npx eslint --format json | npx which-modules no-undef
 
 ## Example
 
-[`test/consumer/`](test/consumer) is a minimal TypeScript project set up as described above. The package's smoke test installs the packed artifact into a copy of it and runs Prettier, `tsc`, ESLint and Vitest there. It also contains the SQL tag snippet from above, in `src/sql.ts`.
+[`test/consumer/`](test/consumer) is a minimal TypeScript project set up as described above. The package's smoke test installs the packed artifact into a copy of it and runs Prettier, `tsc`, ESLint and Vitest there. It also contains the SQL tag snippet from above, in `src/sql.ts`, and a Vue component (`src/GreetingCard.vue`) imported from TypeScript.
 
 ## License
 
