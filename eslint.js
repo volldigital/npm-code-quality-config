@@ -9,12 +9,16 @@ import jest from 'eslint-plugin-jest';
 import mocha from 'eslint-plugin-mocha';
 import n from 'eslint-plugin-n';
 import reactHooks from 'eslint-plugin-react-hooks';
+import vue from 'eslint-plugin-vue';
 import { defineConfig, globalIgnores } from 'eslint/config';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
+import vueParser from 'vue-eslint-parser';
 
 const ALL = '**/*.{js,mjs,cjs,jsx,ts,mts,cts,tsx}';
 const TS = '**/*.{ts,mts,cts,tsx}';
+// Vue single-file components. Their <script> is linted as TypeScript, with the type-checked rules.
+const VUE = '**/*.vue';
 const E2E = ['**/*.cy.{js,jsx,ts,tsx}', '**/cypress/**/*.{js,jsx,ts,tsx}'];
 const TESTS = [
   '**/*.{test,spec}.{js,jsx,ts,tsx}',
@@ -89,7 +93,7 @@ export default function appConfig({
     // base
     {
       name: 'shared/base',
-      files: [ALL],
+      files: [ALL, VUE],
       extends: [js.configs.recommended],
       languageOptions: {
         sourceType: jsIsEsm ? 'module' : 'commonjs',
@@ -147,10 +151,10 @@ export default function appConfig({
     // typescript
     {
       name: 'shared/typescript',
-      files: [TS],
+      files: [TS, VUE],
       extends: [tseslint.configs.recommendedTypeChecked, tseslint.configs.stylisticTypeChecked],
       languageOptions: {
-        parserOptions: { projectService: true, tsconfigRootDir, jsxPragma: null },
+        parserOptions: { projectService: true, tsconfigRootDir, jsxPragma: null, extraFileExtensions: ['.vue'] },
       },
       rules: {
         '@typescript-eslint/no-unused-vars': [
@@ -185,10 +189,33 @@ export default function appConfig({
       ],
     },
 
+    // vue
+    {
+      name: 'shared/vue',
+      files: [VUE],
+      extends: [vue.configs['flat/recommended']],
+      languageOptions: {
+        /*
+         * Must come after the typescript block, whose parser would otherwise win. vue-eslint-parser handles the
+         * template and hands <script> to the typescript-eslint parser, so the type-checked rules above also run here.
+         */
+        parser: vueParser,
+        sourceType: 'module',
+        parserOptions: { parser: tseslint.parser, extraFileExtensions: ['.vue'] },
+      },
+      rules: {
+        /*
+         * typescript-eslint's eslint-recommended block (no-undef etc. off, because TypeScript checks them) only
+         * matches TS extensions, so it is applied here explicitly.
+         */
+        ...tseslint.configs.eslintRecommended.rules,
+      },
+    },
+
     // imports
     {
       name: 'shared/imports',
-      files: [ALL],
+      files: [ALL, VUE],
       extends: [importX.flatConfigs.recommended, importX.flatConfigs.typescript],
       settings: {
         'import-x/resolver-next': [createTypeScriptImportResolver({ alwaysTryTypes: true })],
@@ -274,7 +301,7 @@ export default function appConfig({
      */
     {
       name: 'shared/curly',
-      files: [ALL],
+      files: [ALL, VUE],
       rules: { curly: 'error' },
     },
   ]);

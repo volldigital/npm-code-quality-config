@@ -4,7 +4,7 @@ Opinionated, shared ESLint (flat config) and Prettier configuration. It bundles 
 
 What you get:
 
-- **ESLint**: `@eslint/js` recommended, type-checked `typescript-eslint`, `eslint-plugin-n` for Node code, React (`@eslint-react` + hooks), `import-x` with cycle detection, Cypress, and Jest/Vitest/Mocha. Rules that would conflict with Prettier are turned off.
+- **ESLint**: `@eslint/js` recommended, type-checked `typescript-eslint`, `eslint-plugin-n` for Node code, React (`@eslint-react` + hooks), Vue (`eslint-plugin-vue`), `import-x` with cycle detection, Cypress, and Jest/Vitest/Mocha. Rules that would conflict with Prettier are turned off.
 - **Prettier**: 120 columns, single quotes, trailing commas, import sorting, and SQL formatting inside tagged template literals.
 - **CLI helpers**: `lint-report` and `which-modules`, which summarise ESLint output.
 
@@ -75,6 +75,7 @@ These globs decide which rules apply to a file:
 
 - **TypeScript**: `*.ts`, `*.mts`, `*.cts`, `*.tsx`
 - **React**: `*.jsx`, `*.tsx`
+- **Vue**: `*.vue` (see [Vue](#vue))
 - **Tests**: `*.test.*`, `*.spec.*`, and files under `__tests__/`, `test/` or `tests/`
 - **Cypress**: `*.cy.*` and files under `cypress/`
 - **Tooling**: `*.config.*` and `scripts/**`. These are treated as Node code even in browser projects.
@@ -86,6 +87,17 @@ Variables, arguments and caught errors prefixed with `_` are exempt from the unu
 `curly` is enforced with its default `all` option: every `if`, `else`, `for`, `while` and `do` body needs braces. Existing code can be fixed with `eslint --fix`.
 
 With TypeScript 6, `compilerOptions.types` defaults to `[]`, so `@types/*` packages are no longer included automatically. If you see type-aware errors such as `no-unsafe-call` on Node APIs, list the packages explicitly in your `tsconfig.json`, e.g. `"types": ["node"]`.
+
+### Vue
+
+Vue single-file components are linted automatically, with no extra option. Like the React rules, the Vue rules only apply to matching files (`*.vue`), so other projects are unaffected.
+
+- `eslint-plugin-vue`'s `flat/recommended` preset (Vue 3) applies to the whole file. Template formatting rules are turned off, because Prettier formats templates.
+- `<script>` and `<script setup>` are parsed by the typescript-eslint parser, so the same type-checked rules as in `.ts` files apply. Blocks without `lang="ts"` are linted the same way.
+- Type-aware rules need the `.vue` files in a `tsconfig.json` (e.g. `"include": ["src"]` or `"src/**/*.vue"`). To import components from `.ts` files, declare the usual `*.vue` module shim; see [`shims-vue.d.ts`](test/consumer/src/shims-vue.d.ts).
+- Custom elements such as Ionic's `<ion-button>` are not flagged. `vue/no-undef-components` stays off, because it can't see globally registered or auto-imported components. Enable it yourself with `ignorePatterns: ['^ion-']` if it fits your project.
+
+Prettier formats `.vue` files out of the box. Sorting the imports inside `<script>` needs `@vue/compiler-sfc`, which every Vue project already has as a dependency of `vue`.
 
 ## Prettier
 
@@ -169,7 +181,7 @@ npx eslint --format json | npx which-modules no-undef
 
 ## Example
 
-[`test/consumer/`](test/consumer) is a minimal TypeScript project set up as described above. The package's smoke test installs the packed artifact into a copy of it and runs Prettier, `tsc`, ESLint and Vitest there. It also contains the SQL tag snippet from above, in `src/sql.ts`.
+[`test/consumer/`](test/consumer) is a minimal TypeScript project set up as described above. The package's smoke test installs the packed artifact into a copy of it and runs Prettier, `tsc`, ESLint and Vitest there. It also contains the SQL tag snippet from above, in `src/sql.ts`, and a Vue component (`src/GreetingCard.vue`) imported from TypeScript.
 
 ## License
 

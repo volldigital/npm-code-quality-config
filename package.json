@@ -64,9 +64,11 @@
     "eslint-plugin-mocha": "^12.0.2",
     "eslint-plugin-n": "^18.5.0",
     "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-vue": "^10.12.0",
     "globals": "^17.14.0",
     "prettier-plugin-embed": "^0.8.2",
     "prettier-plugin-sql": "^0.20.0",
-    "typescript-eslint": "^8.72.1"
+    "typescript-eslint": "^8.72.1",
+    "vue-eslint-parser": "^10.4.1"
   }
 }

@@ -42,12 +42,13 @@ Package exports (`package.json` `exports`/`bin`):
     2. `eslint-plugin-n`, only when `env` is `node`/`both`; picks the module or script variant from `modules` and the file extension
     3. TypeScript (type-checked, `projectService`)
     4. React (`.jsx`/`.tsx`)
-    5. `import-x`
-    6. Cypress e2e (always on, inert without matching files)
-    7. one test-runner block (`jest`/`vitest`/`mocha`/`node`, or none). Runners in `RUNNER_SAFE_CALLS` (currently `node`) get a second block, limited to TS test files, that exempts their calls from `no-floating-promises`.
-    8. tooling files
-    9. `eslint-config-prettier`, which must come after every block above so it disables conflicting formatting rules.
-    10. `curly`, which must come after `eslint-config-prettier`, because that turns it off. The default `all` option doesn't conflict with Prettier.
+    5. Vue (`.vue`, `eslint-plugin-vue` `flat/recommended`). Must come after TypeScript: it swaps the parser to `vue-eslint-parser`, which delegates `<script>` to the typescript-eslint parser. `.vue` is also in the base, TypeScript, `import-x` and `curly` globs.
+    6. `import-x`
+    7. Cypress e2e (always on, inert without matching files)
+    8. one test-runner block (`jest`/`vitest`/`mocha`/`node`, or none). Runners in `RUNNER_SAFE_CALLS` (currently `node`) get a second block, limited to TS test files, that exempts their calls from `no-floating-promises`.
+    9. tooling files
+    10. `eslint-config-prettier`, which must come after every block above so it disables conflicting formatting rules.
+    11. `curly`, which must come after `eslint-config-prettier`, because that turns it off. The default `all` option doesn't conflict with Prettier.
 - `@disphere/code-quality-config/prettier` → `prettier.js`: the shared Prettier config.
   - Plugins are resolved to absolute paths with `import.meta.resolve`, so consuming projects don't need to install them.
   - SQL formatting of templates tagged `mysqlFormat`/`mssqlFormat` via `prettier-plugin-embed` + `prettier-plugin-sql`.
@@ -67,12 +68,12 @@ Design decisions documented in comments that should be preserved:
 
 ## Smoke test and example project
 
-`test/consumer/` is a minimal TypeScript consumer project (Node, Vitest, both SQL tags). It doubles as the example referenced from the README. `scripts/smoke-test.mjs`:
+`test/consumer/` is a minimal TypeScript consumer project (Node, Vitest, both SQL tags, a Vue component imported from TS). It doubles as the example referenced from the README. `scripts/smoke-test.mjs`:
 
 1. copies it to a temp dir
-2. runs `npm pack` and installs the tarball plus `eslint prettier typescript@6 @types/node vitest`
+2. runs `npm pack` and installs the tarball plus `eslint prettier typescript@6 @types/node vitest vue` (`vue` provides `@vue/compiler-sfc` for sorting imports in `.vue`)
 3. runs `prettier --check`, `tsc`, `eslint`, `vitest run`, and both bins.
-4. writes bad-code fixtures into the copy and checks the exact rule/line reports (`expectMessages`): `curly` plus its fix, and `testRunner: 'node'` via a second config passed with `--config`.
+4. writes bad-code fixtures into the copy and checks the exact rule/line reports (`expectMessages`): `curly` plus its fix, a `.vue` file (type-checked rule, Vue rule, `curly`, Prettier import sorting), and `testRunner: 'node'` via a second config passed with `--config`.
 
 This catches what linting the repo cannot: files missing from `files`, broken `exports`, plugins not resolving from a consumer's directory, and peer conflicts.
 

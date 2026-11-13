@@ -88,6 +88,31 @@ describe.only('only', () => {
 });
 `;
 
+// Vue SFC: a type-checked rule, a Vue rule and `curly` must all report inside it; Ionic elements must not. Prettier
+// must sort the imports inside <script setup> (unsorted here) and leave the rest alone.
+const VUE_IMPORTS_UNSORTED = `import { usersByName } from './index.js';
+import { ref } from 'vue';
+`;
+const VUE_IMPORTS_SORTED = `import { ref } from 'vue';
+
+import { usersByName } from './index.js';
+`;
+const VUE_BAD = `<script setup lang="ts">
+${VUE_IMPORTS_UNSORTED}
+const props = defineProps<{ items: string[] }>();
+const query = ref(usersByName);
+
+fetch('https://example.com');
+if (props.items.length === 0) console.log(query.value);
+</script>
+
+<template>
+  <ion-list>
+    <ion-item v-for="item in props.items">{{ item }}</ion-item>
+  </ion-list>
+</template>
+`;
+
 try {
   await cp(join(root, 'test/consumer'), dir, { recursive: true });
 
@@ -105,6 +130,8 @@ try {
     'typescript@6',
     '@types/node',
     'vitest',
+    // Also provides @vue/compiler-sfc, which the sort-imports Prettier plugin needs for .vue files.
+    'vue',
   ]);
 
   // The fixture is committed formatted, so this passes only if every prettier plugin loaded.
@@ -140,6 +167,19 @@ try {
     ['--config', 'eslint.node-test.config.mjs'],
   );
   await rm(join(dir, nodeTestFile));
+
+  const vueFile = 'src/BadList.vue';
+  await writeFile(join(dir, vueFile), VUE_BAD);
+  expectMessages(vueFile, [
+    `@typescript-eslint/no-floating-promises:${lineOf(VUE_BAD, 'fetch(')}`,
+    `curly:${lineOf(VUE_BAD, 'if (')}`,
+    `vue/valid-v-for:${lineOf(VUE_BAD, 'v-for')}`,
+  ]);
+  run('npx', ['prettier', '--write', vueFile]);
+  if ((await readFile(join(dir, vueFile), 'utf8')) !== VUE_BAD.replace(VUE_IMPORTS_UNSORTED, VUE_IMPORTS_SORTED)) {
+    throw new Error(`${vueFile}: prettier did not sort the <script setup> imports as expected`);
+  }
+  await rm(join(dir, vueFile));
 
   console.log('Smoke test passed.');
 } catch (err) {
