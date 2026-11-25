@@ -1,17 +1,20 @@
 # @disphere/code-quality-config
 
-Opinionated, shared ESLint (flat config) and Prettier configuration. It bundles the plugins it uses, so a project only needs the peer dependencies.
+Opinionated, shared ESLint (flat config) and Prettier configuration.
+It bundles the plugins it uses, so a project only needs the peer dependencies.
 
 What you get:
 
-- **ESLint**: `@eslint/js` recommended, type-checked `typescript-eslint`, `eslint-plugin-n` for Node code, React (`@eslint-react` + hooks), Vue (`eslint-plugin-vue`), `import-x` with cycle detection, Cypress, and Jest/Vitest/Mocha. Rules that would conflict with Prettier are turned off.
-- **Prettier**: 120 columns, single quotes, trailing commas, import sorting, and SQL formatting inside tagged template literals.
+- **ESLint**: `@eslint/js` recommended, type-checked `typescript-eslint`, `eslint-plugin-n` for Node code, React (`@eslint-react` + hooks), Vue (`eslint-plugin-vue`), `import-x` with cycle detection, Cypress, and Jest/Vitest/Mocha.
+  Rules that would conflict with Prettier are turned off.
+- **Prettier**: 120 columns, single quotes, trailing commas, import sorting, SQL formatting inside tagged template literals, and one sentence per line in Markdown.
 - **CLI helpers**: `lint-report` and `which-modules`, which summarise ESLint output.
 
 ## Requirements
 
 - Node.js >= 24
-- `eslint` ^10.8, `prettier` ^3.9.6, `typescript` >=5.1.6 <6.1.0. TypeScript is needed even in JavaScript-only projects, because `typescript-eslint` loads it.
+- `eslint` ^10.8, `prettier` ^3.9.6, `typescript` >=5.1.6 <6.1.0.
+  TypeScript is needed even in JavaScript-only projects, because `typescript-eslint` loads it.
 
 ## Installation
 
@@ -21,7 +24,8 @@ npm install --save-dev @disphere/code-quality-config eslint prettier typescript@
 
 TypeScript 7 is not supported yet, because `typescript-eslint` does not support it.
 
-Declare the Node version in your `package.json`. `eslint-plugin-n` reads it to decide which Node APIs are allowed:
+Declare the Node version in your `package.json`.
+`eslint-plugin-n` reads it to decide which Node APIs are allowed:
 
 ```json
 {
@@ -33,9 +37,11 @@ Declare the Node version in your `package.json`. `eslint-plugin-n` reads it to d
 
 ### `npm audit` and minimatch (GHSA-g3hv-75wg-m249)
 
-`npm audit` may report [GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249), a ReDoS in minimatch `<11.0.1`. It comes in through `eslint`, `@eslint/config-array` and `@typescript-eslint/typescript-estree`, which require minimatch 10 themselves, so this package can't fix it. npm `overrides` only take effect in the root project, so the package can't apply one for you either.
+`npm audit` may report [GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249), a ReDoS in minimatch `<11.0.1`.
+It comes in through `eslint`, `@eslint/config-array` and `@typescript-eslint/typescript-estree`, which require minimatch 10 themselves, so this package can't fix it. npm `overrides` only take effect in the root project, so the package can't apply one for you either.
 
-The risk is low: in a lint setup, minimatch only matches the glob patterns from your own ESLint config and ignore files, not untrusted input. To clear the audit anyway, add an override to your `package.json`:
+The risk is low: in a lint setup, minimatch only matches the glob patterns from your own ESLint config and ignore files, not untrusted input.
+To clear the audit anyway, add an override to your `package.json`:
 
 ```json
 {
@@ -45,7 +51,8 @@ The risk is low: in a lint setup, minimatch only matches the glob patterns from 
 }
 ```
 
-ESLint and typescript-eslint both work with minimatch 11; their own fixes require `^11.0.5` and `^11.0.1`. Remove the override once releases of both that depend on minimatch 11 are installed.
+ESLint and typescript-eslint both work with minimatch 11; their own fixes require `^11.0.5` and `^11.0.1`.
+Remove the override once releases of both that depend on minimatch 11 are installed.
 
 ## ESLint
 
@@ -78,26 +85,38 @@ These globs decide which rules apply to a file:
 - **Vue**: `*.vue` (see [Vue](#vue))
 - **Tests**: `*.test.*`, `*.spec.*`, and files under `__tests__/`, `test/` or `tests/`
 - **Cypress**: `*.cy.*` and files under `cypress/`
-- **Tooling**: `*.config.*` and `scripts/**`. These are treated as Node code even in browser projects.
+- **Tooling**: `*.config.*` and `scripts/**`.
+  These are treated as Node code even in browser projects.
 
-With `testRunner: 'node'`, test files get Node globals, and calls of `test`, `describe`, `it` and `suite` (including `.skip`, `.todo` and `.only`) imported from `node:test` are exempt from `@typescript-eslint/no-floating-promises`, because the runner awaits their promises itself. Other floating promises in test files are still reported. Jest, Vitest and Mocha need no such exemption: their `test()`/`describe()`/`it()` don't return promises.
+With `testRunner: 'node'`, test files get Node globals, and calls of `test`, `describe`, `it` and `suite` (including `.skip`, `.todo` and `.only`) imported from `node:test` are exempt from `@typescript-eslint/no-floating-promises`, because the runner awaits their promises itself.
+Other floating promises in test files are still reported.
+Jest, Vitest and Mocha need no such exemption: their `test()`/`describe()`/`it()` don't return promises.
 
 Variables, arguments and caught errors prefixed with `_` are exempt from the unused-variable rules.
 
-`curly` is enforced with its default `all` option: every `if`, `else`, `for`, `while` and `do` body needs braces. Existing code can be fixed with `eslint --fix`.
+`curly` is enforced with its default `all` option: every `if`, `else`, `for`, `while` and `do` body needs braces.
+Existing code can be fixed with `eslint --fix`.
 
-With TypeScript 6, `compilerOptions.types` defaults to `[]`, so `@types/*` packages are no longer included automatically. If you see type-aware errors such as `no-unsafe-call` on Node APIs, list the packages explicitly in your `tsconfig.json`, e.g. `"types": ["node"]`.
+With TypeScript 6, `compilerOptions.types` defaults to `[]`, so `@types/*` packages are no longer included automatically.
+If you see type-aware errors such as `no-unsafe-call` on Node APIs, list the packages explicitly in your `tsconfig.json`, e.g. `"types": ["node"]`.
 
 ### Vue
 
-Vue single-file components are linted automatically, with no extra option. Like the React rules, the Vue rules only apply to matching files (`*.vue`), so other projects are unaffected.
+Vue single-file components are linted automatically, with no extra option.
+Like the React rules, the Vue rules only apply to matching files (`*.vue`), so other projects are unaffected.
 
-- `eslint-plugin-vue`'s `flat/recommended` preset (Vue 3) applies to the whole file. Template formatting rules are turned off, because Prettier formats templates.
-- `<script>` and `<script setup>` are parsed by the typescript-eslint parser, so the same type-checked rules as in `.ts` files apply. Blocks without `lang="ts"` are linted the same way.
-- Type-aware rules need the `.vue` files in a `tsconfig.json` (e.g. `"include": ["src"]` or `"src/**/*.vue"`). To import components from `.ts` files, declare the usual `*.vue` module shim; see [`shims-vue.d.ts`](test/consumer/src/shims-vue.d.ts).
-- Custom elements such as Ionic's `<ion-button>` are not flagged. `vue/no-undef-components` stays off, because it can't see globally registered or auto-imported components. Enable it yourself with `ignorePatterns: ['^ion-']` if it fits your project.
+- `eslint-plugin-vue`'s `flat/recommended` preset (Vue 3) applies to the whole file.
+  Template formatting rules are turned off, because Prettier formats templates.
+- `<script>` and `<script setup>` are parsed by the typescript-eslint parser, so the same type-checked rules as in `.ts` files apply.
+  Blocks without `lang="ts"` are linted the same way.
+- Type-aware rules need the `.vue` files in a `tsconfig.json` (e.g. `"include": ["src"]` or `"src/**/*.vue"`).
+  To import components from `.ts` files, declare the usual `*.vue` module shim; see [`shims-vue.d.ts`](test/consumer/src/shims-vue.d.ts).
+- Custom elements such as Ionic's `<ion-button>` are not flagged.
+  `vue/no-undef-components` stays off, because it can't see globally registered or auto-imported components.
+  Enable it yourself with `ignorePatterns: ['^ion-']` if it fits your project.
 
-Prettier formats `.vue` files out of the box. Sorting the imports inside `<script>` needs `@vue/compiler-sfc`, which every Vue project already has as a dependency of `vue`.
+Prettier formats `.vue` files out of the box.
+Sorting the imports inside `<script>` needs `@vue/compiler-sfc`, which every Vue project already has as a dependency of `vue`.
 
 ## Prettier
 
@@ -109,11 +128,44 @@ import base from '@disphere/code-quality-config/prettier';
 export default base;
 ```
 
-Use `.mjs`, not `.js`, so the file is ESM whether or not your `package.json` sets `"type": "module"`. Add a `.prettierignore` as needed.
+Use `.mjs`, not `.js`, so the file is ESM whether or not your `package.json` sets `"type": "module"`.
+Add a `.prettierignore` as needed.
 
 To extend the config, spread it: `export default { ...base, printWidth: 100 };`.
 
 Imports are sorted in this order: Node built-ins, third-party packages, `@/` aliases, then relative imports.
+
+### One sentence per line in Markdown
+
+In `*.md` files, Prettier puts each sentence on its own line, via [`prettier-plugin-sentences-per-line`](https://github.com/JoshuaKGoldberg/sentences-per-line).
+Changing a sentence then touches one line in the diff.
+Paragraphs are never reflowed (`proseWrap: 'preserve'`): lines are only split, never joined.
+
+```diff
+- First sentence. Second sentence.
++ First sentence.
++ Second sentence.
+```
+
+- A line is split where a word ends in `.`, `!` or `?` and the next word starts with a capital letter (A–Z).
+  Sentences that start with inline code, a link, emphasis or an umlaut, or follow a bare number (`Node 26. Then`), are not split, so `format:check` won't flag them.
+- Headings and table rows are never split.
+  List items and blockquotes are.
+- Abbreviations don't end a sentence: `e.g.`, `i.e.`, `etc.`, `vs.`, English titles (`Dr.`, `Mr.`), common German abbreviations (`bzw.`, `ca.`, `ggf.`, `vgl.`, `Nr.`) and single letters, which covers initials and `z. B.`, `d. h.` or `u. a.`.
+  Version numbers such as `1.2.3` are not split either.
+- To add abbreviations, override `sentencesPerLineAdditionalAbbreviations` for `*.md` files.
+  Keep the shared list, because the option replaces it:
+
+```js
+import base from '@disphere/code-quality-config/prettier';
+
+const markdown = base.overrides.find((override) => override.files === '*.md');
+markdown.options.sentencesPerLineAdditionalAbbreviations.push('resp.');
+
+export default base;
+```
+
+Adopting this reformats existing Markdown once; consider doing it in a dedicated formatting commit.
 
 ### SQL in template literals
 
@@ -130,7 +182,9 @@ const query = mysqlFormat`
 `;
 ```
 
-The tags are only markers for Prettier. This package doesn't ship them: it is a dev dependency, and the tags are runtime code. Copy them into your project, e.g. as `src/sql.ts`:
+The tags are only markers for Prettier.
+This package doesn't ship them: it is a dev dependency, and the tags are runtime code.
+Copy them into your project, e.g. as `src/sql.ts`:
 
 ```ts
 /*
@@ -146,7 +200,8 @@ export const mysqlFormat = joinTemplate;
 export const mssqlFormat = joinTemplate;
 ```
 
-In JavaScript, drop the type annotations and the `SqlValue` type. Values are interpolated as-is and are not escaped, so pass user input as query parameters (`:name`), not via `${}`.
+In JavaScript, drop the type annotations and the `SqlValue` type.
+Values are interpolated as-is and are not escaped, so pass user input as query parameters (`:name`), not via `${}`.
 
 ## Suggested npm scripts
 
@@ -173,7 +228,8 @@ It exits with code 1 when there are errors, so it can end a pipeline.
 
 ### `which-modules`
 
-Groups the messages of one rule by the module or identifier they name. This shows whether a large count has one cause or many:
+Groups the messages of one rule by the module or identifier they name.
+This shows whether a large count has one cause or many:
 
 ```shell
 npx eslint --format json | npx which-modules no-undef
@@ -181,7 +237,9 @@ npx eslint --format json | npx which-modules no-undef
 
 ## Example
 
-[`test/consumer/`](test/consumer) is a minimal TypeScript project set up as described above. The package's smoke test installs the packed artifact into a copy of it and runs Prettier, `tsc`, ESLint and Vitest there. It also contains the SQL tag snippet from above, in `src/sql.ts`, and a Vue component (`src/GreetingCard.vue`) imported from TypeScript.
+[`test/consumer/`](test/consumer) is a minimal TypeScript project set up as described above.
+The package's smoke test installs the packed artifact into a copy of it and runs Prettier, `tsc`, ESLint and Vitest there.
+It also contains the SQL tag snippet from above, in `src/sql.ts`, and a Vue component (`src/GreetingCard.vue`) imported from TypeScript.
 
 ## License
 

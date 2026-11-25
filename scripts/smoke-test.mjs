@@ -113,6 +113,42 @@ if (props.items.length === 0) console.log(query.value);
 </template>
 `;
 
+// Markdown: one sentence per line, except in headings and table rows; abbreviations and version numbers don't end a
+// sentence. Code blocks still get the other plugins (import sorting).
+const MARKDOWN_BAD = `# Setup. Read this first.
+
+First sentence. Second sentence! Use e.g. Node v24.0.0 or later, z. B. Node 26 or later. Then run it.
+
+- A list item. With two sentences.
+
+| One. Two. |
+| --------- |
+
+\`\`\`ts
+import { b } from './b';
+import { a } from 'node:fs';
+\`\`\`
+`;
+const MARKDOWN_FIXED = `# Setup. Read this first.
+
+First sentence.
+Second sentence!
+Use e.g. Node v24.0.0 or later, z. B. Node 26 or later.
+Then run it.
+
+- A list item.
+  With two sentences.
+
+| One. Two. |
+| --------- |
+
+\`\`\`ts
+import { a } from 'node:fs';
+
+import { b } from './b';
+\`\`\`
+`;
+
 try {
   await cp(join(root, 'test/consumer'), dir, { recursive: true });
 
@@ -180,6 +216,14 @@ try {
     throw new Error(`${vueFile}: prettier did not sort the <script setup> imports as expected`);
   }
   await rm(join(dir, vueFile));
+
+  const markdownFile = 'NOTES.md';
+  await writeFile(join(dir, markdownFile), MARKDOWN_BAD);
+  run('npx', ['prettier', '--write', markdownFile]);
+  if ((await readFile(join(dir, markdownFile), 'utf8')) !== MARKDOWN_FIXED) {
+    throw new Error(`${markdownFile}: prettier did not put one sentence per line as expected`);
+  }
+  await rm(join(dir, markdownFile));
 
   console.log('Smoke test passed.');
 } catch (err) {
